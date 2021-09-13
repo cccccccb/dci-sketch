@@ -1,0 +1,74 @@
+{
+  "$schema": "https://raw.githubusercontent.com/sketch-hq/SketchAPI/develop/docs/sketch-plugin-manifest-schema.json",
+  "icon": "icon.png",
+  "commands": [
+    {
+      "name": "Open",
+      "identifier": "dci.import.open",
+      "script": "import.js",
+      "handler": "OnOpen"
+    },
+    {
+      "name": "Create Text Icon",
+      "identifier": "dci.import.create.text",
+      "script": "import.js",
+      "handler": "OnCreateText"
+    },
+    {
+      "name": "Create Action Icon",
+      "identifier": "dci.import.create.action",
+      "script": "import.js",
+      "handler": "OnCreateAction"
+    },
+    {
+      "name": "Create Icon",
+      "identifier": "dci.import.create.icon",
+      "script": "import.js",
+      "handler": "OnCreateIcon"
+    },
+    {
+      "name": "Create Icon Background",
+      "identifier": "dci.import.create.background",
+      "script": "import.js",
+      "handler": "OnCreateBackground"
+    },
+    {
+      "name": "Rename",
+      "identifier": "dci.icon.rename",
+      "script": "import.js",
+      "handler": "OnRename"
+    },
+    {
+      "name": "Export",
+      "identifier": "dci.export.icon",
+      "script": "export.js",
+      "handler": "OnExportIcon"
+    },
+    {
+      "name": "Export Page",
+      "identifier": "dci.export.page",
+      "script": "export.js",
+      "handler": "OnExportPage"
+    },
+    {
+      "name": "Export All",
+      "identifier": "dci.export.all",
+      "script": "export.js",
+      "handler": "OnExportAll"
+    }
+  ],
+  "menu": {
+    "title": "DCI",
+    "items": [
+      "dci.import.create.text",
+      "dci.import.create.action",
+      "dci.import.create.icon",
+      "dci.import.create.background",
+      "dci.icon.rename",
+      "dci.import.open",
+      "dci.export.icon",
+      "dci.export.page",
+      "dci.export.all"
+    ]
+  }
+}
