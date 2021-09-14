@@ -31,15 +31,17 @@ export function OnCreateBackground() {
     if (!layers || layers.layers.length == 0)
         UI.alert("No artboard", "Please select the artboard")
     layers = layers.layers
-    for (var i in layers) {
-        var artboard = layers[i]
+    for (const artboard of layers) {
         if (artboard.type != 'Artboard')
             continue
         // check for DCI format
         if (!artboard.name.startsWith("D."))
             continue
         const artboardName = artboard.name + ".Background"
-        createArtboard(artboard.parent, artboardName, artboard.frame, artboard.background.color)
+        var newGeometry = new Document.Rectangle(artboard.frame.x + ArtboardPadding,
+            artboard.frame.y + ArtboardPadding, artboard.frame.width, artboard.frame.height)
+        // add offset
+        createArtboard(artboard.parent, artboardName, newGeometry, artboard.background.color)
     }
 }
 export function OnRename() {
@@ -54,8 +56,7 @@ export function OnRename() {
         return
     }
     layers = layers.layers
-    for (var i in layers) {
-        var artboard = layers[i]
+    for (var artboard of layers) {
         if (artboard.type != 'Artboard')
             continue
         // check for DCI format
@@ -126,17 +127,24 @@ function createIconGroup(page, iconName, iconType, bgColor, initPos) {
 
     var disabled = createArtboardOfIcon(page, iconName, iconType, "Disabled", bgColor)
     alignAtArtboard(disabled, pressed, 'right')
+
+    return [normal, hover, pressed, disabled]
 }
 
 function newIconToCurrentPage(iconName, iconType, colorSensitive) {
     var currentPage = getAndCheckCurrentPage()
+    const rightEdget = getPageRightEdge(currentPage)
+    var artboardList
 
     if (colorSensitive) {
-        createIconGroup(currentPage, iconName, iconType, LightBGColor, {"x": 20, "y": 20})
-        createIconGroup(currentPage, iconName, iconType, DarkBGColor, {"x": 20, "y": 20 + ArtboardHeight + ArtboardPadding})
+        artboardList = createIconGroup(currentPage, iconName, iconType, LightBGColor, {"x": rightEdget + ArtboardPadding, "y": 20})
+        artboardList = createIconGroup(currentPage, iconName, iconType, DarkBGColor, {"x": rightEdget + ArtboardPadding, "y": 20 + ArtboardHeight + ArtboardPadding})
     } else {
-        createIconGroup(currentPage, iconName, iconType, GenericBGColor, {"x": 20, "y": 20})
+        artboardList = createIconGroup(currentPage, iconName, iconType, GenericBGColor, {"x": rightEdget + ArtboardPadding, "y": 20})
     }
+
+    // view to center for artboard list of icon
+    Document.getSelectedDocument().centerOnLayer(artboardList[1])
 }
 
 function alignAtArtboard(source, target, position) {
@@ -162,4 +170,13 @@ function createArtboard(parent, name, rect, color) {
     artboard.background.color = color
 
     return artboard
+}
+
+function getPageRightEdge(page) {
+    var right = 0
+    for (const layer of page.layers) {
+        if (layer.frame.x + layer.frame.width > right)
+            right = layer.frame.x + layer.frame.width
+    }
+    return right
 }
