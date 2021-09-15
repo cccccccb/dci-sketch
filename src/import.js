@@ -1,15 +1,28 @@
-import sketch from 'sketch'
-// documentation: https://developer.sketchapp.com/reference/api/
-
-var Document = require('sketch/dom')
-var UI = require('sketch/ui')
-
 const ArtboardWidth = 256
 const ArtboardHeight = 256
 const ArtboardPadding = 40
 const LightBGColor = '#f0f0f0'
 const DarkBGColor = '#1f1f1f'
 const GenericBGColor = '#e0e0e0'
+
+function checkIconName(name) {
+    return name.indexOf(".") < 0 && name.indexOf("/") && name.indexOf(" ") < 0
+}
+
+function getAndCheckCurrentPage() {
+    var currentDoc = Document.getSelectedDocument()
+    if (!currentDoc)
+        UI.alert("No Document", "Please select a document")
+
+    var currentPage = currentDoc.selectedPage
+
+    if (!currentPage)
+        UI.alert("No Page", "Please select a page")
+    return currentPage
+}
+
+var Document = require('sketch/dom')
+var UI = require('sketch/ui')
 
 export function OnOpen() {
     sketch.UI.message("Open")
@@ -55,6 +68,10 @@ export function OnRename() {
     if (newName == "") {
         return
     }
+    if (!checkIconName(newName)) {
+        UI.alert("Invalid Name", "The icon name can't contains the './ ' characters")
+        return
+    }
     layers = layers.layers
     for (var artboard of layers) {
         if (artboard.type != 'Artboard')
@@ -79,23 +96,15 @@ function createIconForType(type) {
     newIconToCurrentPage(options.name, type, options.colorSensitive)
 }
 
-function getAndCheckCurrentPage() {
-    var currentDoc = Document.getSelectedDocument()
-    if (!currentDoc)
-        UI.alert("No Document", "Please select a document")
-
-    var currentPage = currentDoc.selectedPage
-
-    if (!currentPage)
-        UI.alert("No Page", "Please select a page")
-    return currentPage
-}
-
 function getIconOptionsFromUser() {
     // Get the icon name form user
     var name = UI.getStringFromUser("What's the icon name?", "")
     if (name == "") {
         UI.message("The icon create request is cancelled")
+        return
+    }
+    if (!checkIconName(name)) {
+        UI.alert("Invalid Name", "The icon name can't contains the './ ' characters")
         return
     }
 
@@ -168,6 +177,20 @@ function createArtboard(parent, name, rect, color) {
     artboard.background.enabled = true
     artboard.background.includedInExport = false
     artboard.background.color = color
+
+    // init export formats
+    artboard.exportFormats = [
+        {
+            fileFormat: "webp",
+            size: "32w",
+            suffix: ".32"
+        },
+        {
+            fileFormat: "webp",
+            size: "64w",
+            suffix: ".64"
+        }
+    ]
 
     return artboard
 }

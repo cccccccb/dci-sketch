@@ -21,7 +21,13 @@
     "postinstall": "npm run build && skpm-link"
   },
   "devDependencies": {
-    "@skpm/builder": "^0.8.0"
+    "@skpm/builder": "^0.8.0",
+    "@skpm/child_process": "^0.4.2",
+    "@skpm/fs": "^0.2.6",
+    "@skpm/path": "^0.1.4"
   },
-  "author": "zccrs <zccrs@live.com>"
+  "author": "zccrs <zccrs@live.com>",
+  "dependencies": {
+    "child_process": "^1.0.2"
+  }
 }
