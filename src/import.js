@@ -1,5 +1,6 @@
-const ArtboardWidth = 256
-const ArtboardHeight = 256
+const IconTypeSize = 512
+const TextTypeSize = 32
+const ActionTypeSize = 48
 const ArtboardPadding = 40
 const LightBGColor = '#f0f0f0'
 const DarkBGColor = '#1f1f1f'
@@ -119,7 +120,13 @@ function getIconOptionsFromUser() {
 function createArtboardOfIcon(page, name, type, mode, bgColor) {
     const artboardName = 'D.' + name + "." + type + "." + mode
 
-    var artboard = createArtboard(page, artboardName, new Document.Rectangle(0, 0, ArtboardWidth, ArtboardHeight), bgColor)
+    var size = IconTypeSize
+    if (type === 'Text')
+        size = TextTypeSize
+    else if (type === 'Action')
+        size = ActionTypeSize
+
+    var artboard = createArtboard(page, artboardName, new Document.Rectangle(0, 0, size, size), bgColor)
     return artboard
 }
 
@@ -147,7 +154,7 @@ function newIconToCurrentPage(iconName, iconType, colorSensitive) {
 
     if (colorSensitive) {
         artboardList = createIconGroup(currentPage, iconName, iconType, LightBGColor, {"x": rightEdget + ArtboardPadding, "y": 20})
-        artboardList = createIconGroup(currentPage, iconName, iconType, DarkBGColor, {"x": rightEdget + ArtboardPadding, "y": 20 + ArtboardHeight + ArtboardPadding})
+        artboardList = createIconGroup(currentPage, iconName, iconType, DarkBGColor, {"x": rightEdget + ArtboardPadding, "y": 20 + artboardList[0].frame.height + ArtboardPadding})
     } else {
         artboardList = createIconGroup(currentPage, iconName, iconType, GenericBGColor, {"x": rightEdget + ArtboardPadding, "y": 20})
     }
@@ -178,17 +185,11 @@ function createArtboard(parent, name, rect, color) {
     artboard.background.includedInExport = false
     artboard.background.color = color
 
-    // init export formats
     artboard.exportFormats = [
         {
             fileFormat: "webp",
-            size: "32w",
-            suffix: ".32"
-        },
-        {
-            fileFormat: "webp",
-            size: "64w",
-            suffix: ".64"
+            size: `${rect.width}w`,
+            suffix: `-${rect.width}`
         }
     ]
 

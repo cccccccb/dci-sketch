@@ -105,6 +105,14 @@ function doArtboardClassifyForIconName(layers) {
 }
 
 function doExportIcon(layers) {
+    // check dci command
+    try {
+        FS.accessSync("/usr/local/bin/dci", FS._R_OK)
+    } catch {
+        UI.alert("No DCI command", "Please install the \"dci\"")
+        return
+    }
+
     const allIcon = doArtboardClassifyForIconName(layers)
     if (!allIcon) {
         return
@@ -137,7 +145,7 @@ function doExportIcon(layers) {
             }*/]
         }
         const iconFileList = allIcon[iconName]
-        const iconPath = PATH.join(saveDir, iconName)
+        const iconPath = PATH.join(saveDir, iconName + ".dci")
         // create directory for the icon
         try {
             FS.accessSync(iconPath, FS._R_OK)
@@ -146,13 +154,19 @@ function doExportIcon(layers) {
                 continue
             }
             // clean
-            FS.rmdirSync(iconPath, {force: true, recursive: true})
+            spawnSync("rm", [iconPath])
         } catch {
             // continue
         }
 
-        if (!createDirectory(iconPath)) {
-            UI.alert(`Failed on export ${iconName}`, `Can't create the "${iconPath}" directory`)
+        const tmpDir = FS.mkdtempSync("/tmp/dci-sketch-");
+        if (tmpDir === undefined) {
+            UI.alert(`Failed on export ${iconName}`, `Can't create the "${tmpDir}" directory`)
+            continue
+        }
+        const tmpPath = PATH.join(tmpDir, iconName)
+        if (!createDirectory(tmpPath, true)) {
+            UI.alert(`Failed on export ${iconName}`, `Can't create the "${tmpPath}" directory`)
             continue
         }
 
@@ -175,35 +189,34 @@ function doExportIcon(layers) {
                 const sizeNumber = Number(size)
                 if (sizeNumber == Number.NaN)
                     continue
-                const filePath = PATH.join(iconPath, size, subdirName + format.fileFormat)
+                const filePath = PATH.join(tmpPath, size, subdirName + format.fileFormat)
                 if (!createDirectory(filePath, {recursive: true})) {
                     UI.message(`Failed on create "${filePath}", will to skip the file`)
                     continue
                 }
 
-                const data = Document.export(file.object, {formats: format.fileFormat, output: false})
+                const scale = size / file.object.frame.width
+                const data = Document.export(file.object, {formats: format.fileFormat, output: false, scales: String(scale)})
                 const fileBaseName = file.isBackground ? "background" : "foreground"
                 FS.writeFileSync(PATH.join(filePath, fileBaseName), data)
             }
-
-            /*const base64Data = data.toString("base64")
-            UI.message(data)
-
-            var fileInfo = {
-                format: "webp",
-                exportFormats: exportFormats,
-                dataOfBase64: base64Data
-            }*/
         }
-        //var result = spawnSync("dci", ["--create-from-json", JSON.stringify(iconProperies), "--to", saveDir])
-        //console.log(result)
+        const args = ["--create", saveDir, tmpPath]
+        var output = spawnSync("dci", args)
+        console.log("Command: dci, Arguments:", args)
+        console.log(output, output.stdout.toString(), output.stderr.toString())
+        // clean
+        FS.rmdirSync(tmpDir, {force: true, recursive: true})
+        if (output && output.status === 0) {
+            UI.message(`Sussced`)
+        }
     }
     UI.message("Finished")
 }
 
 function userAccpetOverrideFile(filePath) {
     var options = ['Override', 'Skip']
-    var selection = UI.getSelectionFromUser(`The "${filePath}"" existed!`, options)
+    var selection = UI.getSelectionFromUser(`The "${filePath}" existed!`, options)
     if (!selection[2])
         return
 

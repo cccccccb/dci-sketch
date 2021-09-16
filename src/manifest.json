@@ -60,9 +60,9 @@
   "menu": {
     "title": "DCI",
     "items": [
+      "dci.import.create.icon",
       "dci.import.create.text",
       "dci.import.create.action",
-      "dci.import.create.icon",
       "dci.import.create.background",
       "dci.icon.rename",
       "dci.import.open",
