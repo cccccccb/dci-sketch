@@ -3,12 +3,6 @@
   "icon": "icon.png",
   "commands": [
     {
-      "name": "Open",
-      "identifier": "dci.import.open",
-      "script": "import.js",
-      "handler": "OnOpen"
-    },
-    {
       "name": "Create Text Icon",
       "identifier": "dci.import.create.text",
       "script": "import.js",
@@ -39,6 +33,12 @@
       "handler": "OnRename"
     },
     {
+      "name": "Open",
+      "identifier": "dci.export.open",
+      "script": "export.js",
+      "handler": "OnOpen"
+    },
+    {
       "name": "Export",
       "identifier": "dci.export.icon",
       "script": "export.js",
@@ -65,7 +65,7 @@
       "dci.import.create.action",
       "dci.import.create.background",
       "dci.icon.rename",
-      "dci.import.open",
+      "dci.export.open",
       "dci.export.icon",
       "dci.export.page",
       "dci.export.all"

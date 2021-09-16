@@ -25,9 +25,6 @@ function getAndCheckCurrentPage() {
 var Document = require('sketch/dom')
 var UI = require('sketch/ui')
 
-export function OnOpen() {
-    sketch.UI.message("Open")
-}
 export function OnCreateText() {
     createIconForType("Text")
 }

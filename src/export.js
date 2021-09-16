@@ -65,6 +65,64 @@ export function OnExportAll() {
     doExportIcon(layers)
 }
 
+// unpack the dci file
+export function OnOpen() {
+    var savePanel = NSOpenPanel.openPanel()
+    savePanel.title = "Show DCI Files"
+    savePanel.prompt = "Show"
+    savePanel.message = "Please choose the DCI files"
+    savePanel.canCreateDirectories = false
+    savePanel.canChooseFiles = true
+    savePanel.canChooseDirectories = false
+    savePanel.allowsMultipleSelection = true
+    const result = savePanel.runModal()
+    if (result !== NSModalResponseOK)
+        return
+    var openFiles = savePanel.URLs()
+    if (openFiles.length === 0)
+        return
+    for (var i = 0; i < openFiles.length; ++i)
+        showDciFileContents(openFiles[i])
+}
+
+function showDciFileContents(url) {
+    const path = url.path()
+    if (!path.endsWith(".dci"))
+        return
+    // check dci command
+    try {
+        FS.accessSync("/usr/local/bin/dci", FS._R_OK)
+    } catch {
+        UI.alert("No DCI command", "Please install the \"dci\"")
+        return
+    }
+
+    const output = spawnSync("dci", ['--export', PATH.dirname(path), path])
+    const newDir = PATH.join(PATH.dirname(path), PATH.basename(path, ".dci"))
+    if (output && output.status === 0) {
+        // add suffix for image files
+        for (var dir of FS.readdirSync(newDir)) {
+            if (!dir.endsWith("ground"))
+                continue
+            var format = PATH.dirname(dir).split("-")
+            format = format[format.length - 1]
+            
+            if (typeof format === "string")
+                FS.renameSync(PATH.join(newDir, dir), PATH.join(newDir, dir + "." + format))
+        }
+    }
+    
+    try {
+        FS.accessSync(newDir, FS._R_OK)
+        var workspace = NSWorkspace.sharedWorkspace()
+        // workspace.selectFile_inFileViewerRootedAtPath(path, PATH.dirname(path))
+        console.log(newDir)
+        workspace.openFile(newDir)
+    } catch {
+        UI.message(`Failed on show ${path}`)
+    }
+}
+
 function parseIconName(name) {
     var nameSections = name.split(".")
     // invalid name
