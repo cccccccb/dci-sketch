@@ -1,6 +1,6 @@
-const IconTypeSize = 512
-const TextTypeSize = 32
-const ActionTypeSize = 48
+const IconTypeSize = 256
+const TextTypeSize = 16
+const ActionTypeSize = 24
 const ArtboardPadding = 40
 const LightBGColor = '#f0f0f0'
 const DarkBGColor = '#1f1f1f'
@@ -185,8 +185,23 @@ function createArtboard(parent, name, rect, color) {
     artboard.exportFormats = [
         {
             fileFormat: "webp",
+            size: "1x",
+            suffix: `@1`
+        },
+        {
+            fileFormat: "webp",
+            size: "2x",
+            suffix: `@2`
+        },
+        {
+            fileFormat: "webp",
+            size: "3x",
+            suffix: `@3`
+        },
+        {
+            fileFormat: "webp",
             size: `${rect.width}w`,
-            suffix: `-${rect.width}`
+            suffix: ""
         }
     ]
 

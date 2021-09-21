@@ -1,6 +1,3 @@
-const ArtboardWidth = 256
-const ArtboardHeight = 256
-const ArtboardPadding = 40
 const LightBGColor = '#f0f0f0'
 const DarkBGColor = '#1f1f1f'
 const GenericBGColor = '#e0e0e0'
@@ -102,9 +99,9 @@ function showDciFileContents(url) {
     if (output && output.status === 0) {
         // add suffix for image files
         for (var dir of FS.readdirSync(newDir)) {
-            if (!dir.endsWith("ground"))
+            if (dir.indexOf("ground@") < 0)
                 continue
-            var format = PATH.dirname(dir).split("-")
+            var format = PATH.dirname(dir).split(".")
             format = format[format.length - 1]
             
             if (typeof format === "string")
@@ -115,8 +112,6 @@ function showDciFileContents(url) {
     try {
         FS.accessSync(newDir, FS._R_OK)
         var workspace = NSWorkspace.sharedWorkspace()
-        // workspace.selectFile_inFileViewerRootedAtPath(path, PATH.dirname(path))
-        console.log(newDir)
         workspace.openFile(newDir)
     } catch {
         UI.message(`Failed on show ${path}`)
@@ -229,11 +224,27 @@ function doExportIcon(layers) {
         }
 
         for (const file of iconFileList) {
-            const subdirName = generateIconFileNameByProperies(file, "")
-            if (subdirName === undefined) {
-                UI.alert("Warning!", `The "${file.name}" is a invalid icon`);
+            var subdirNames = generateIconFileNamesByProperies(file, "")
+            if (subdirNames === undefined) {
+                UI.alert("Warning!", `The "${file.object.name}" is a invalid icon`);
                 continue
             }
+
+            var targetScaleList = []
+            // find image pixel ratio list of export
+            for (const format of file.object.exportFormats) {
+                const size = format.size
+                if (size.endsWith("x") && !size.endsWith("px")) {
+                    const sizeNumber = Number(size.slice(0, -1))
+                    if (Number.isNaN(sizeNumber))
+                        continue
+                    targetScaleList.push({scale: sizeNumber, suffix: format.suffix})
+                }
+            }
+
+            if (targetScaleList.length === 0)
+                continue;
+
             for (const format of file.object.exportFormats) {
                 var size = format.size
                 // Only allows set the icon pixel size
@@ -244,19 +255,39 @@ function doExportIcon(layers) {
                         break
                     }
                 }
-                const sizeNumber = Number(size)
-                if (sizeNumber == Number.NaN)
-                    continue
-                const filePath = PATH.join(tmpPath, size, subdirName + format.fileFormat)
-                if (!createDirectory(filePath, {recursive: true})) {
-                    UI.message(`Failed on create "${filePath}", will to skip the file`)
-                    continue
-                }
 
-                const scale = size / file.object.frame.width
-                const data = Document.export(file.object, {formats: format.fileFormat, output: false, scales: String(scale)})
-                const fileBaseName = file.isBackground ? "background" : "foreground"
-                FS.writeFileSync(PATH.join(filePath, fileBaseName), data)
+                if (size === format.size)
+                    continue
+                const sizeNumber = Number(size)
+                if (Number.isNaN(sizeNumber))
+                    continue
+
+                var linkDir
+                var doLink = false
+                for (const subdirName of subdirNames) {
+                    const filePath = PATH.join(tmpPath, file.type.toLowerCase(), size, subdirName + format.fileFormat)
+                    if (!createDirectory(filePath, { recursive: true })) {
+                        UI.message(`Failed on create "${filePath}", will to skip it`)
+                        continue
+                    }
+
+                    for (const scale of targetScaleList) {
+                        const imageScale = sizeNumber * scale.scale / file.object.frame.width
+                        const data = Document.export(file.object, { formats: format.fileFormat, output: false, scales: String(imageScale) })
+                        const fileBaseName = (file.isBackground ? "background" : "foreground") + format.suffix + scale.suffix
+                        const imageFile = PATH.join(filePath, fileBaseName)
+                        if (doLink) {
+                            const linkSourcePath = PATH.join(PATH.relative(filePath, linkDir), fileBaseName)
+                            console.log("link from:", linkSourcePath, "to:", imageFile)
+                            FS.symlinkSync(linkSourcePath, imageFile)
+                        } else {
+                            linkDir = filePath
+                            FS.writeFileSync(imageFile, data)
+                        }
+                    }
+
+                    doLink = true
+                }
             }
         }
         const args = ["--create", saveDir, tmpPath]
@@ -281,21 +312,19 @@ function userAccpetOverrideFile(filePath) {
     return selection[1] === 0
 }
 
-function generateIconFileNameByProperies(properies, format) {
-    var theme
-
+function generateIconFileNamesByProperies(properies, format) {
+    const modeName = properies.mode.toLowerCase()
+    
     if (properies.object.background.color.startsWith(GenericBGColor)) {
-        theme = "generic"
-    } else if (properies.object.background.color.startsWith(LightBGColor)) {
-        theme = "light"
+        return [`${modeName}.light.${format}`, `${modeName}.dark.${format}`]
+    } else  if (properies.object.background.color.startsWith(LightBGColor)) {
+        return [`${modeName}.light.${format}`]
     } else if (properies.object.background.color.startsWith(DarkBGColor)) {
-        theme = 'dark'
+        return [`${modeName}.dark.${format}`]
     } else {
         console.log(`Invalid background color: ${properies.object.background.color} of ${properies.name}`)
         return
     }
-
-    return [properies.type.toLowerCase(), properies.mode.toLowerCase(), theme, format].join("-")
 }
 
 function createDirectory(path, recursive) {
