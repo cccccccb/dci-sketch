@@ -1,9 +1,10 @@
 const LightBGColor = '#f0f0f0'
 const DarkBGColor = '#1f1f1f'
 const GenericBGColor = '#e0e0e0'
+const NameSeparator = '/'
 
 function checkIconName(name) {
-    return name.indexOf(".") < 0 && name.indexOf("/") && name.indexOf(" ") < 0
+    return name.indexOf(NameSeparator) < 0 && name.indexOf(" ") < 0
 }
 
 function getAndCheckCurrentPage() {
@@ -119,7 +120,7 @@ function showDciFileContents(url) {
 }
 
 function parseIconName(name) {
-    var nameSections = name.split(".")
+    var nameSections = name.split(NameSeparator)
     // invalid name
     if (nameSections.length < 4 || nameSections.length > 5) {
         return

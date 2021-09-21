@@ -34,8 +34,8 @@
     },
     {
       "name": "Open",
-      "identifier": "dci.export.open",
-      "script": "export.js",
+      "identifier": "dci.import.open",
+      "script": "import.js",
       "handler": "OnOpen"
     },
     {
@@ -64,8 +64,8 @@
       "dci.import.create.text",
       "dci.import.create.action",
       "dci.import.create.background",
+      "dci.import.open",
       "dci.icon.rename",
-      "dci.export.open",
       "dci.export.icon",
       "dci.export.page",
       "dci.export.all"
