@@ -393,6 +393,9 @@ function showDciFileContents(url) {
                 createBackgroundFor(c, group.isDark ? DarkBGColor : LightBGColor).moveToBack()
             }
         }
+
+        // view to center for artboard list of icon
+        Document.getSelectedDocument().centerOnLayer(artboard)
     }
 
      // clean
