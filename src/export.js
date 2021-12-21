@@ -329,10 +329,14 @@ function generateIconFileNamesByProperies(properies, format) {
 }
 
 function createDirectory(path, recursive) {
-    try {
-        FS.mkdirSync(path, {recursive: recursive})
-        return true
-    } catch {
-        return false
-    }
+    // Call mkdirSync function failed with `recursive` options 
+    // in some architectures for unknown reason, use the mkdir 
+    // command instead.
+
+    const args = [path]
+    if (recursive)
+        args.unshift("-p")
+
+    var copyRet = spawnSync("mkdir", args)
+    return copyRet && (copyRet.status === 0)
 }
