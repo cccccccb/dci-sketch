@@ -1,6 +1,3 @@
-const IconTypeSize = 256
-const TextTypeSize = 16
-const ActionTypeSize = 24
 const ArtboardPadding = 40
 const PreviewArtBoardMargin = 10
 const LightBGColor = '#f0f0f0'
@@ -9,7 +6,11 @@ const GenericBGColor = '#e0e0e0'
 const NameSeparator = '/'
 
 function checkIconName(name) {
-    return name.indexOf(NameSeparator) && name.indexOf(" ") < 0
+    return (
+        name.indexOf(NameSeparator) < 0)
+        && (name.indexOf(" ") < 0
+        && (name.indexOf(".") < 0)
+    )
 }
 
 function getAndCheckCurrentPage() {
@@ -29,50 +30,191 @@ var UI = require('sketch/ui')
 const { spawnSync } = require('@skpm/child_process')
 var PATH = require('@skpm/path')
 var FS = require('@skpm/fs')
+var Settings = require('sketch/settings')
 
-export function OnCreateText() {
-    createIconForType("Text")
-}
-export function OnCreateAction() {
-    createIconForType("Action")
-}
-export function OnCreateIcon() {
-    createIconForType("Icon")
-}
-export function OnCreateBackground() {
-    var currentDoc = Document.getSelectedDocument()
-    if (!currentDoc)
-        UI.alert("No Document", "Please select a document")
-    var layers = currentDoc.selectedLayers
-    if (!layers || layers.layers.length == 0)
-        UI.alert("No artboard", "Please select the artboard")
-    layers = layers.layers
-    for (const artboard of layers) {
-        if (artboard.type != 'Artboard')
-            continue
-        // check for DCI format
-        if (!artboard.name.startsWith("D" + NameSeparator))
-            continue
-        const artboardName = artboard.name + NameSeparator + "Background"
-        var newGeometry = new Document.Rectangle(artboard.frame.x + ArtboardPadding,
-            artboard.frame.y + ArtboardPadding, artboard.frame.width, artboard.frame.height)
-        // add offset
-        createArtboard(artboard.parent, artboardName, newGeometry, artboard.background.color)
+function getPaletteSettings(document, key) {
+    var paletteSetting = Settings.documentSettingForKey(document, key)
+
+    if (paletteSetting === undefined) {
+        paletteSetting = {
+            paletteRole: -1,
+            hue: 0,
+            saturation: 0,
+            lightness: 0,
+            red: 0,
+            green: 0,
+            blue: 0,
+            alpha: 0
+        }
     }
+
+    return paletteSetting
 }
+
+function setPaletteSetting(document, key, settings) {
+    Settings.setDocumentSettingForKey(document, key, settings)
+}
+
+function addLabelField(x, y, title, value, view) {
+    var label = NSTextField.alloc().initWithFrame(NSMakeRect(x, y - 5, 80, 25))
+    label.setBezeled(false)
+    label.setDrawsBackground(false)
+    label.setEditable(false)
+    label.setSelectable(false)
+    label.setStringValue(title)
+    label.setFont(NSFont.paletteFontOfSize(NSFont.systemFontOfSize(8)))
+    view.addSubview(label)
+
+    var field = NSTextField.alloc().initWithFrame(NSMakeRect(x + 80, y, 150, 23))
+    field.setPlaceholderString("-100 - +100 (例如： -25, +40)")
+    field.setIntValue(value)
+    view.addSubview(field)
+    return field
+}
+
+export function ShowLayerPalette() {
+    var doc = Document.getSelectedDocument()
+    if (!doc) {
+        UI.alert("无文档", "请先选择一个文档！")
+        return
+    }
+        
+    var layers = doc.selectedLayers
+    if (!layers || layers.length != 1 || layers.layers[0].type != 'Artboard') {
+        UI.alert("请选择画板", "仅支持选中画板！")
+        return
+    }
+        
+    var layer = layers.layers[0]
+    const key = layer.id + "PaletteSettings"
+    var paletteSetting = getPaletteSettings(doc, key)
+    var paletteRole = paletteSetting.paletteRole
+    var hue = paletteSetting.hue
+    var saturation =  paletteSetting.saturation
+    var lightness = paletteSetting.lightness
+    var red = paletteSetting.red
+    var green = paletteSetting.green
+    var blue = paletteSetting.blue
+    var alpha = paletteSetting.alpha
+
+    var alert = NSAlert.alloc().init()
+    alert.setMessageText("画板调色板")
+    alert.addButtonWithTitle("确定")
+    alert.addButtonWithTitle("取消")
+
+    var view = NSView.alloc().initWithFrame(NSMakeRect(0, 0, 285, 330))
+    alert.setAccessoryView(view)
+    COScript.currentCOScript().setShouldKeepAround(true)
+
+    var paletteList = [
+        {
+            title: "无",
+            value: -1
+        },  
+        {
+            title: "前景色",
+            value: 0
+        },
+        {
+            title: "背景色",
+            value: 1
+        },
+        {
+            title: "活动色的前景色",
+            value: 2
+        },
+        {
+            title: "活动色",
+            value: 3
+        },
+    ]
+
+    var paletteRoleLabel = NSTextField.alloc().initWithFrame(NSMakeRect(10, 295, 80, 25))
+    paletteRoleLabel.setBezeled(false)
+    paletteRoleLabel.setDrawsBackground(false)
+    paletteRoleLabel.setEditable(false)
+    paletteRoleLabel.setSelectable(false)
+    paletteRoleLabel.setStringValue("画板颜色")
+    paletteRoleLabel.setFont(NSFont.paletteFontOfSize(NSFont.systemFontSize()))
+    view.addSubview(paletteRoleLabel)
+
+    var currentMenuVar = -1
+    var selectMenuIndex = 0
+    var menu = NSMenu.alloc().init()
+    var menuItemCallBack = function(menuItem) {
+        currentMenuVar = menuItem.representedObject()
+    }
+
+    paletteList.forEach(function(palette, index) {
+        var item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent(palette.title, nil, "")
+        item.setEnabled(true)
+        item.setRepresentedObject(palette.value)
+        item.setCOSJSTargetFunction(menuItemCallBack)
+        menu.addItem(item)
+        if (palette.value == paletteRole) {
+            selectMenuIndex = index
+        }
+    })
+    var order = NSPopUpButton.alloc().initWithFrame(NSMakeRect(100, 300, 150, 23))
+    order.setNeedsDisplay()
+    order.setMenu(menu)
+    order.selectItemAtIndex(selectMenuIndex)
+    view.addSubview(order)
+
+    var adjustLabel = NSTextField.alloc().initWithFrame(NSMakeRect(10, 250, 80, 25))
+    adjustLabel.setBezeled(false)
+    adjustLabel.setDrawsBackground(false)
+    adjustLabel.setEditable(false)
+    adjustLabel.setSelectable(false)
+    adjustLabel.setStringValue("色彩微调")
+    adjustLabel.setFont(NSFont.paletteFontOfSize(NSFont.systemFontSize()))
+    view.addSubview(adjustLabel)
+
+    var hueField = addLabelField(20, 220, "色调", hue, view)
+    var saturationField =addLabelField(20, 185, "饱和度", saturation, view)
+    var lightnessField = addLabelField(20, 150, "亮度", lightness, view)
+    var redField = addLabelField(20, 115, "红色", red, view)
+    var greenField = addLabelField(20, 80, "绿色", green, view)
+    var blueField = addLabelField(20, 45, "蓝色", blue, view)
+    var alphaField = addLabelField(20, 10, "透明度", alpha, view)
+
+    var ret = alert.runModal()
+    if (ret !== 1000)
+        return
+
+    paletteSetting.paletteRole = currentMenuVar
+    paletteSetting.hue = hueField.intValue()
+    paletteSetting.saturation = saturationField.intValue()
+    paletteSetting.lightness = lightnessField.intValue()
+    paletteSetting.red = redField.intValue()
+    paletteSetting.green = greenField.intValue()
+    paletteSetting.blue = blueField.intValue()
+    paletteSetting.alpha = alphaField.intValue()
+    setPaletteSetting(doc, key, paletteSetting)
+}
+
+export function OnCreate() {
+    if (!getAndCheckCurrentPage())
+        return
+    var options = getIconOptionsFromUser()
+    if (!options)
+        return
+    newIconToCurrentPage(options.name, options.colorSensitive)
+}
+
 export function OnRename() {
     var currentDoc = Document.getSelectedDocument()
     if (!currentDoc)
-        UI.alert("No Document", "Please select a document")
+        UI.alert("无文档", "请选择一个文档！")
     var layers = currentDoc.selectedLayers
     if (!layers || layers.layers.length === 0)
-        UI.alert("No artboard", "Please select the artboard")
-    var newName = UI.getStringFromUser("What's the icon new name?", "")
+        UI.alert("无画板", "请选择一个画板")
+    var newName = UI.getStringFromUser("请输入图标的新名称", "")
     if (newName == "") {
         return
     }
     if (!checkIconName(newName)) {
-        UI.alert("Invalid Name", "The icon name can't contains the '/ ' characters")
+        UI.alert("无效名称", "图标名称中包含 './ ' 等无效字符！")
         return
     }
     layers = layers.layers
@@ -91,9 +233,9 @@ export function OnRename() {
 // unpack the dci file
 export function OnOpen() {
     var savePanel = NSOpenPanel.openPanel()
-    savePanel.title = "Open DCI Files"
-    savePanel.prompt = "Open"
-    savePanel.message = "Please choose the DCI files"
+    savePanel.title = "打开 DCI 文件"
+    savePanel.prompt = "打开"
+    savePanel.message = "请选择一个 DCI 文件"
     savePanel.canCreateDirectories = false
     savePanel.canChooseFiles = true
     savePanel.canChooseDirectories = false
@@ -108,76 +250,127 @@ export function OnOpen() {
         showDciFileContents(openFiles[i])
 }
 
-function createIconForType(type) {
-    if (!getAndCheckCurrentPage())
-        return
-    var options = getIconOptionsFromUser()
-    if (!options)
-        return
-
-    newIconToCurrentPage(options.name, type, options.colorSensitive)
-}
-
 function getIconOptionsFromUser() {
-    // Get the icon name form user
-    var name = UI.getStringFromUser("What's the icon name?", "")
+    var alert = NSAlert.alloc().init()
+    alert.setMessageText("图标基本信息")
+    alert.addButtonWithTitle("确定")
+    alert.addButtonWithTitle("取消")
+
+    var view = NSView.alloc().initWithFrame(NSMakeRect(0, 0, 180, 150))
+    alert.setAccessoryView(view)
+    COScript.currentCOScript().setShouldKeepAround(true)
+
+    var iconNameLabel = NSTextField.alloc().initWithFrame(NSMakeRect(45, 120, 90, 25))
+    iconNameLabel.setBezeled(false)
+    iconNameLabel.setDrawsBackground(false)
+    iconNameLabel.setEditable(false)
+    iconNameLabel.setSelectable(false)
+    iconNameLabel.setStringValue("请输入图标名")
+    iconNameLabel.setFont(NSFont.paletteFontOfSize(NSFont.systemFontSize()))
+    view.addSubview(iconNameLabel)
+
+    var nameField = NSTextField.alloc().initWithFrame(NSMakeRect(0, 95, 180, 23))
+    nameField.setPlaceholderString("请勿包含'./'或空格等特殊符号！")
+    view.addSubview(nameField)
+
+    var colorSensitiveLabel = NSTextField.alloc().initWithFrame(NSMakeRect(13, 45, 160, 25))
+    colorSensitiveLabel.setBezeled(false)
+    colorSensitiveLabel.setDrawsBackground(false)
+    colorSensitiveLabel.setEditable(false)
+    colorSensitiveLabel.setSelectable(false)
+    colorSensitiveLabel.setStringValue("图标颜色是否为可变化的？")
+    colorSensitiveLabel.setFont(NSFont.paletteFontOfSize(NSFont.systemFontSize()))
+    view.addSubview(colorSensitiveLabel)
+
+    var colorSensitives = [
+        {
+            title: "颜色可变化",
+            value: true
+        },
+        {
+            title: "颜色不可变化",
+            value: false
+        }
+    ]
+
+    var currentMenuVar = true
+    var menu = NSMenu.alloc().init()
+    var menuItemCallBack = function(menuItem) {
+        currentMenuVar = menuItem.representedObject()
+    }
+
+    colorSensitives.forEach(function(color, _) {
+        var item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent(color.title, nil, "")
+        item.setEnabled(true)
+        item.setRepresentedObject(color.value)
+        item.setCOSJSTargetFunction(menuItemCallBack)
+        menu.addItem(item)
+    })
+    var order = NSPopUpButton.alloc().initWithFrame(NSMakeRect(0, 20, 180, 23))
+    order.setNeedsDisplay()
+    order.setMenu(menu)
+    order.selectItemAtIndex(0)
+    view.addSubview(order)
+
+    var ret = alert.runModal()
+    if (ret !== 1000)
+        return
+
+    var name = nameField.stringValue()
     if (name == "") {
-        UI.message("The icon create request is cancelled")
+        UI.alert("名称为空", "请输入图标名称！")
         return
     }
+
     if (!checkIconName(name)) {
-        UI.alert("Invalid Name", "The icon name can't contains the './ ' characters")
+        UI.alert("无效名称", "图标名称中包含 './ ' 等无效字符！")
         return
     }
 
-    var options = ['Color Sensitive', 'Color Insensitive']
-    var selection = UI.getSelectionFromUser("Is a color sensitive icon?", options)
-    if (!selection[2])
-        return
-
-    return {name: name, colorSensitive: selection[1] === 0}
+    return {name: name, colorSensitive: Number(currentMenuVar)}
 }
 
-function createArtboardOfIcon(page, name, type, mode, bgColor) {
-    const artboardName = 'D' + NameSeparator + name + NameSeparator + type + NameSeparator + mode
+function createArtboardOfIcon(page, name, mode, bgColor) {
+    var artboardName = 'D' + NameSeparator + name + NameSeparator + mode
+    if (bgColor === LightBGColor) {
+        artboardName += (NameSeparator + "Light")
+    } else if (bgColor === DarkBGColor) {
+        artboardName += (NameSeparator + "Dark")
+    }
 
-    var size = IconTypeSize
-    if (type === 'Text')
-        size = TextTypeSize
-    else if (type === 'Action')
-        size = ActionTypeSize
-
+    var size = 36  // TODO
     var artboard = createArtboard(page, artboardName, new Document.Rectangle(0, 0, size, size), bgColor)
+
     return artboard
 }
 
-function createIconGroup(page, iconName, iconType, bgColor, initPos) {
-    var normal = createArtboardOfIcon(page, iconName, iconType, "Normal", bgColor)
+function createIconGroup(page, iconName, bgColor, initPos) {
+    var normal = createArtboardOfIcon(page, iconName, "Normal", bgColor)
     normal.frame.x = initPos.x
     normal.frame.y = initPos.y
 
-    var hover = createArtboardOfIcon(page, iconName, iconType, "Hover", bgColor)
+    var hover = createArtboardOfIcon(page, iconName, "Hover", bgColor)
     alignAtArtboard(hover, normal, 'right')
 
-    var pressed = createArtboardOfIcon(page, iconName, iconType, "Pressed", bgColor)
+    var pressed = createArtboardOfIcon(page, iconName, "Pressed", bgColor)
     alignAtArtboard(pressed, hover, 'right')
 
-    var disabled = createArtboardOfIcon(page, iconName, iconType, "Disabled", bgColor)
+    var disabled = createArtboardOfIcon(page, iconName, "Disabled", bgColor)
     alignAtArtboard(disabled, pressed, 'right')
 
     return [normal, hover, pressed, disabled]
 }
 
-function newIconToCurrentPage(iconName, iconType, colorSensitive) {
+function newIconToCurrentPage(iconName, colorSensitive) {
     var currentPage = getAndCheckCurrentPage()
     const rightEdget = getPageRightEdge(currentPage)
     var artboardList
 
     if (colorSensitive) {
-        artboardList = createIconGroup(currentPage, iconName, iconType, LightBGColor, {"x": rightEdget + ArtboardPadding, "y": ArtboardPadding})
-        artboardList = createIconGroup(currentPage, iconName, iconType, DarkBGColor, {"x": rightEdget + ArtboardPadding, "y": ArtboardPadding + artboardList[0].frame.height + ArtboardPadding})
+        artboardList = createIconGroup(currentPage, iconName, LightBGColor, {"x": rightEdget + ArtboardPadding, "y": ArtboardPadding})
+        artboardList = createIconGroup(currentPage, iconName, DarkBGColor, {"x": rightEdget + ArtboardPadding, "y": ArtboardPadding + artboardList[0].frame.height + ArtboardPadding})
     } else {
-        artboardList = createIconGroup(currentPage, iconName, iconType, GenericBGColor, {"x": rightEdget + ArtboardPadding, "y": ArtboardPadding})
+        artboardList = createIconGroup(currentPage, iconName, GenericBGColor, {"x": rightEdget + ArtboardPadding, "y": ArtboardPadding})
     }
 
     // view to center for artboard list of icon
@@ -208,24 +401,19 @@ function createArtboard(parent, name, rect, color) {
 
     artboard.exportFormats = [
         {
-            fileFormat: "webp",
+            fileFormat: "png",
             size: "1x",
-            suffix: `@1`
+            suffix: `.png`
         },
         {
-            fileFormat: "webp",
+            fileFormat: "png",
             size: "2x",
-            suffix: `@2`
+            suffix: `.png`
         },
         {
-            fileFormat: "webp",
+            fileFormat: "png",
             size: "3x",
-            suffix: `@3`
-        },
-        {
-            fileFormat: "webp",
-            size: `${rect.width}w`,
-            suffix: ""
+            suffix: `.png`
         }
     ]
 
@@ -239,15 +427,6 @@ function getPageRightEdge(page) {
             right = layer.frame.x + layer.frame.width
     }
     return right
-}
-
-function createDirectory(path, recursive) {
-    try {
-        FS.mkdirSync(path, {recursive: recursive})
-        return true
-    } catch {
-        return false
-    }
 }
 
 function createDciPreviewArtboard(page, iconName, width, height) {
@@ -307,13 +486,13 @@ function showDciFileContents(url) {
     try {
         FS.accessSync("/usr/local/bin/dci", FS._R_OK)
     } catch {
-        UI.alert("No DCI command", "Please install the \"dci\"")
+        UI.alert("未找到 DCI 命令", "请联系管理员安装 \"dci\"")
         return
     }
 
     const tmpPath = FS.mkdtempSync("/tmp/dci-sketch-");
     if (tmpPath === undefined) {
-        UI.alert(`Failed on open ${path}`, `Can't create the "${tmpPath}" directory`)
+        UI.alert(`打开路径 ${path} 失败`, `无法创建 "${tmpPath}" 目录！`)
         return
     }
     const output = spawnSync("dci", ['--export', tmpPath, path])
@@ -404,8 +583,8 @@ function showDciFileContents(url) {
 
 function getSizeByName(dciFile) {
     const sections = dciFile.split(PATH.sep)
-    const size = Number(sections[1])
-    const scale = Number(dciFile.slice(-1))
+    const size = Number(sections[0])
+    const scale = Number(sections[2])
     if (Number.isNaN(size) || Number.isNaN(scale))
         return
     return size * scale

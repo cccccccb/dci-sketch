@@ -3,55 +3,48 @@
   "icon": "icon.png",
   "commands": [
     {
-      "name": "Create Text Icon",
-      "identifier": "dci.import.create.text",
-      "script": "import.js",
-      "handler": "OnCreateText"
-    },
-    {
-      "name": "Create Action Icon",
-      "identifier": "dci.import.create.action",
-      "script": "import.js",
-      "handler": "OnCreateAction"
-    },
-    {
-      "name": "Create Icon",
+      "name": "创建",
       "identifier": "dci.import.create.icon",
       "script": "import.js",
-      "handler": "OnCreateIcon"
+      "handler": "OnCreate",
+      "shortcut": "command option shift n"
     },
     {
-      "name": "Create Icon Background",
-      "identifier": "dci.import.create.background",
+      "name": "画板颜色",
+      "identifier": "dci.import.show.palette",
       "script": "import.js",
-      "handler": "OnCreateBackground"
+      "handler": "ShowLayerPalette",
+      "shortcut": "command option shift c"
     },
     {
-      "name": "Rename",
+      "name": "重命名",
       "identifier": "dci.icon.rename",
       "script": "import.js",
-      "handler": "OnRename"
+      "handler": "OnRename",
+      "shortcut": "command option shift r"
     },
     {
-      "name": "Open",
+      "name": "打开",
       "identifier": "dci.import.open",
       "script": "import.js",
-      "handler": "OnOpen"
+      "handler": "OnOpen",
+      "shortcut": "command option shift o"
     },
     {
-      "name": "Export",
+      "name": "导出图标",
       "identifier": "dci.export.icon",
       "script": "export.js",
-      "handler": "OnExportIcon"
+      "handler": "OnExportIcon",
+      "shortcut": "command option shift e"
     },
     {
-      "name": "Export Page",
+      "name": "导出整页",
       "identifier": "dci.export.page",
       "script": "export.js",
       "handler": "OnExportPage"
     },
     {
-      "name": "Export All",
+      "name": "导出全部",
       "identifier": "dci.export.all",
       "script": "export.js",
       "handler": "OnExportAll"
@@ -61,9 +54,7 @@
     "title": "DCI",
     "items": [
       "dci.import.create.icon",
-      "dci.import.create.text",
-      "dci.import.create.action",
-      "dci.import.create.background",
+      "dci.import.show.palette",
       "dci.import.open",
       "dci.icon.rename",
       "dci.export.icon",

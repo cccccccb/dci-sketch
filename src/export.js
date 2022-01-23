@@ -3,33 +3,18 @@ const DarkBGColor = '#1f1f1f'
 const GenericBGColor = '#e0e0e0'
 const NameSeparator = '/'
 
-function checkIconName(name) {
-    return name.indexOf(NameSeparator) < 0 && name.indexOf(" ") < 0
-}
-
-function getAndCheckCurrentPage() {
-    var currentDoc = Document.getSelectedDocument()
-    if (!currentDoc)
-        UI.alert("No Document", "Please select a document")
-
-    var currentPage = currentDoc.selectedPage
-
-    if (!currentPage)
-        UI.alert("No Page", "Please select a page")
-    return currentPage
-}
-
 var Document = require('sketch/dom')
 var UI = require('sketch/ui')
 const { spawnSync } = require('@skpm/child_process')
 var PATH = require('@skpm/path')
 var FS = require('@skpm/fs')
+var Settings = require('sketch/settings')
 
 export function OnExportIcon() {
-    UI.message("Export Icon")
+    UI.message("导出图标")
     const currentDoc = Document.getSelectedDocument()
     if (!currentDoc) {
-        UI.alert("No Document", "You need to active a document")
+        UI.alert("无文档", "请选择一个活动文档！")
         return
     }
 
@@ -37,10 +22,10 @@ export function OnExportIcon() {
 }
 
 export function OnExportPage() {
-    UI.message("Export Page")
+    UI.message("导出选中页")
     const currentDoc = Document.getSelectedDocument()
     if (!currentDoc) {
-        UI.alert("No Document", "You need to active a document")
+        UI.alert("无文档", "请选择一个活动文档！")
         return
     }
 
@@ -48,10 +33,10 @@ export function OnExportPage() {
 }
 
 export function OnExportAll() {
-    UI.message("Export All")
+    UI.message("导出全部")
     const currentDoc = Document.getSelectedDocument()
     if (!currentDoc) {
-        UI.alert("No Document", "You need to active a document")
+        UI.alert("无文档", "请选择一个活动文档！")
         return
     }
 
@@ -63,66 +48,11 @@ export function OnExportAll() {
     doExportIcon(layers)
 }
 
-// unpack the dci file
-export function OnOpen() {
-    var savePanel = NSOpenPanel.openPanel()
-    savePanel.title = "Show DCI Files"
-    savePanel.prompt = "Show"
-    savePanel.message = "Please choose the DCI files"
-    savePanel.canCreateDirectories = false
-    savePanel.canChooseFiles = true
-    savePanel.canChooseDirectories = false
-    savePanel.allowsMultipleSelection = true
-    const result = savePanel.runModal()
-    if (result !== NSModalResponseOK)
-        return
-    var openFiles = savePanel.URLs()
-    if (openFiles.length === 0)
-        return
-    for (var i = 0; i < openFiles.length; ++i)
-        showDciFileContents(openFiles[i])
-}
-
-function showDciFileContents(url) {
-    const path = url.path()
-    if (!path.endsWith(".dci"))
-        return
-    // check dci command
-    try {
-        FS.accessSync("/usr/local/bin/dci", FS._R_OK)
-    } catch {
-        UI.alert("No DCI command", "Please install the \"dci\"")
-        return
-    }
-
-    const output = spawnSync("dci", ['--export', PATH.dirname(path), path])
-    const newDir = PATH.join(PATH.dirname(path), PATH.basename(path, ".dci"))
-    if (output && output.status === 0) {
-        // add suffix for image files
-        for (var dir of FS.readdirSync(newDir)) {
-            if (dir.indexOf("ground@") < 0)
-                continue
-            var format = PATH.dirname(dir).split(".")
-            format = format[format.length - 1]
-            
-            if (typeof format === "string")
-                FS.renameSync(PATH.join(newDir, dir), PATH.join(newDir, dir + "." + format))
-        }
-    }
-    
-    try {
-        FS.accessSync(newDir, FS._R_OK)
-        var workspace = NSWorkspace.sharedWorkspace()
-        workspace.openFile(newDir)
-    } catch {
-        UI.message(`Failed on show ${path}`)
-    }
-}
-
 function parseIconName(name) {
     var nameSections = name.split(NameSeparator)
     // invalid name
-    if (nameSections.length < 4 || nameSections.length > 5) {
+    if (nameSections.length < 3 || nameSections.length > 4) {
+        console.log("Parase Icon Name error: name section is invalid.")
         return
     }
 
@@ -131,9 +61,7 @@ function parseIconName(name) {
 
     return {
         name: nameSections[1],
-        type: nameSections[2],
-        mode: nameSections[3],
-        isBackground: nameSections[4] === "Background"
+        mode: nameSections[2],
     }
 }
 
@@ -163,7 +91,7 @@ function doExportIcon(layers) {
     try {
         FS.accessSync("/usr/local/bin/dci", FS._R_OK)
     } catch {
-        UI.alert("No DCI command", "Please install the \"dci\"")
+        UI.alert("未找到 DCI 命令", "请联系管理员安装 \"dci\"")
         return
     }
 
@@ -172,9 +100,9 @@ function doExportIcon(layers) {
         return
     }
     var savePanel = NSOpenPanel.openPanel()
-    savePanel.title = "Export DCI"
+    savePanel.title = "导出 DCI"
     savePanel.prompt = "Export"
-    savePanel.message = "Please choose a directory"
+    savePanel.message = "请选择一个目录！"
     savePanel.canCreateDirectories = true
     savePanel.canChooseFiles = false
     savePanel.canChooseDirectories = true
@@ -188,16 +116,6 @@ function doExportIcon(layers) {
 
     UI.message(`Saveing to ${saveDir}`)
     for (const iconName in allIcon) {
-        var iconProperies = {
-            name: iconName,
-            scales: [1, 2, 3],
-            fileList: [/*{
-                path: '',
-                format: 'webp'
-                exportFormats: [],
-                dataOfBase64: ''
-            }*/]
-        }
         const iconFileList = allIcon[iconName]
         const iconPath = PATH.join(saveDir, iconName + ".dci")
         // create directory for the icon
@@ -215,19 +133,18 @@ function doExportIcon(layers) {
 
         const tmpDir = FS.mkdtempSync("/tmp/dci-sketch-");
         if (tmpDir === undefined) {
-            UI.alert(`Failed on export ${iconName}`, `Can't create the "${tmpDir}" directory`)
+            UI.alert(`导出 ${iconName} 失败`, `无法创建 "${tmpDir}" 目录`)
             continue
         }
         const tmpPath = PATH.join(tmpDir, iconName)
         if (!createDirectory(tmpPath, true)) {
-            UI.alert(`Failed on export ${iconName}`, `Can't create the "${tmpPath}" directory`)
+            UI.alert(`导出 ${iconName} 失败`, `无法创建 "${tmpDir}" 目录`)
             continue
         }
-
         for (const file of iconFileList) {
-            var subdirNames = generateIconFileNamesByProperies(file, "")
+            var subdirNames = generateIconFileNamesByProperies(file)
             if (subdirNames === undefined) {
-                UI.alert("Warning!", `The "${file.object.name}" is a invalid icon`);
+                UI.alert("警告!", `"${file.object.name}" 是一个无效图标！`);
                 continue
             }
 
@@ -239,56 +156,41 @@ function doExportIcon(layers) {
                     const sizeNumber = Number(size.slice(0, -1))
                     if (Number.isNaN(sizeNumber))
                         continue
-                    targetScaleList.push({scale: sizeNumber, suffix: format.suffix})
+                    targetScaleList.push({scale: sizeNumber, format: format.fileFormat, suffix: format.suffix})
                 }
             }
-
             if (targetScaleList.length === 0)
                 continue;
 
-            for (const format of file.object.exportFormats) {
-                var size = format.size
-                // Only allows set the icon pixel size
-                const sizeSuffixs = ['w', 'h', 'px', 'width', 'height']
-                for (const ss of sizeSuffixs) {
-                    if (size.endsWith(ss)) {
-                        size = size.slice(0, -ss.length)
-                        break
-                    }
-                }
+            var size = Math.max(file.object.frame.width, file.object.frame.height)
+            if (Number.isNaN(size))
+                continue
 
-                if (size === format.size)
-                    continue
-                const sizeNumber = Number(size)
-                if (Number.isNaN(sizeNumber))
-                    continue
-
-                var linkDir
-                var doLink = false
-                for (const subdirName of subdirNames) {
-                    const filePath = PATH.join(tmpPath, file.type.toLowerCase(), size, subdirName + format.fileFormat)
+            var linkDir
+            var doLink = false
+            for (const subdirName of subdirNames) {
+                for (const scale of targetScaleList) {
+                    const filePath = PATH.join(tmpPath, size.toString(), subdirName, scale.scale.toString())
                     if (!createDirectory(filePath, { recursive: true })) {
-                        UI.message(`Failed on create "${filePath}", will to skip it`)
+                        UI.message(`无法创建 "${filePath}" 目录, 将跳过！`)
                         continue
                     }
 
-                    for (const scale of targetScaleList) {
-                        const imageScale = sizeNumber * scale.scale / file.object.frame.width
-                        const data = Document.export(file.object, { formats: format.fileFormat, output: false, scales: String(imageScale) })
-                        const fileBaseName = (file.isBackground ? "background" : "foreground") + format.suffix + scale.suffix
-                        const imageFile = PATH.join(filePath, fileBaseName)
-                        if (doLink) {
-                            const linkSourcePath = PATH.join(PATH.relative(filePath, linkDir), fileBaseName)
-                            console.log("link from:", linkSourcePath, "to:", imageFile)
-                            FS.symlinkSync(linkSourcePath, imageFile)
-                        } else {
-                            linkDir = filePath
-                            FS.writeFileSync(imageFile, data)
-                        }
+                    const data = Document.export(file.object, { formats: scale.format, output: false, scales: String(scale.scale) })
+                    // TODO: pare palette data to generate file base name.
+                    const fileBaseName = generateFileBaseName(file.object, scale.suffix, filePath)
+                    const imageFile = PATH.join(filePath, fileBaseName)
+                    if (doLink) {
+                        const linkSourcePath = PATH.join(PATH.relative(filePath, linkDir), fileBaseName)
+                        console.log("link from:", linkSourcePath, "to:", imageFile)
+                        FS.symlinkSync(linkSourcePath, imageFile)
+                    } else {
+                        linkDir = filePath
+                        FS.writeFileSync(imageFile, data)
                     }
-
-                    doLink = true
                 }
+
+                doLink = true
             }
         }
         const args = ["--create", saveDir, tmpPath]
@@ -304,24 +206,77 @@ function doExportIcon(layers) {
     UI.message("Finished")
 }
 
+function getPaletteSettings(document, key) {
+    var paletteSetting = Settings.documentSettingForKey(document, key)
+
+    if (paletteSetting === undefined) {
+        paletteSetting = {
+            paletteRole: -1,
+            hue: 0,
+            saturation: 0,
+            lightness: 0,
+            red: 0,
+            green: 0,
+            blue: 0,
+            alpha: 0
+        }
+    }
+
+    return paletteSetting
+}
+
+function generateFileBaseName(layer, suffix, filePath) {
+    var index = 1
+    for(var file of FS.readdirSync(filePath).sort()) {
+        var existIndex = Number(file.split('.')[0])
+        if ((existIndex != undefined) && existIndex >= index)
+            index = existIndex + 1
+    }
+    
+    var name = index.toString() + '.'
+    var paletteSettings = getPaletteSettings(Document.getSelectedDocument(), layer.id + 'PaletteSettings')
+    if (paletteSettings != undefined) {
+        if (paletteSettings.paletteRole != -1) {
+            name += paletteSettings.paletteRole
+
+            if ((paletteSettings.hue != 0) || (paletteSettings.saturation != 0)
+            || (paletteSettings.lightness != 0) || (paletteSettings.red != 0)
+            || (paletteSettings.green != 0) || (paletteSettings.blue != 0) || (paletteSettings.alpha != 0)) {
+                name += ('_' + paletteSettings.hue)
+                name += ('_' + paletteSettings.saturation)
+                name += ('_' + paletteSettings.lightness)
+                name += ('_' + paletteSettings.red)
+                name += ('_' + paletteSettings.green)
+                name += ('_' + paletteSettings.blue)
+                name += ('_' + paletteSettings.alpha)
+            }
+        }
+    }
+
+    if (name.endsWith('.'))
+        name = name.slice(0, -1)
+    name += suffix
+    return name
+}
+
 function userAccpetOverrideFile(filePath) {
-    var options = ['Override', 'Skip']
-    var selection = UI.getSelectionFromUser(`The "${filePath}" existed!`, options)
+    var options = ['覆盖', '跳过']
+    var selection = UI.getSelectionFromUser(`"${filePath}" 已存在！`, options)
     if (!selection[2])
         return
 
     return selection[1] === 0
 }
 
-function generateIconFileNamesByProperies(properies, format) {
+function generateIconFileNamesByProperies(properies) {
     const modeName = properies.mode.toLowerCase()
-    
+
     if (properies.object.background.color.startsWith(GenericBGColor)) {
-        return [`${modeName}.light.${format}`, `${modeName}.dark.${format}`]
+        return [`${modeName}.light`, `${modeName}.dark`]
     } else  if (properies.object.background.color.startsWith(LightBGColor)) {
-        return [`${modeName}.light.${format}`]
+        return [`${modeName}.light`]
     } else if (properies.object.background.color.startsWith(DarkBGColor)) {
-        return [`${modeName}.dark.${format}`]
+        return [`${modeName}.dark`]
     } else {
         console.log(`Invalid background color: ${properies.object.background.color} of ${properies.name}`)
         return
@@ -329,8 +284,8 @@ function generateIconFileNamesByProperies(properies, format) {
 }
 
 function createDirectory(path, recursive) {
-    // Call mkdirSync function failed with `recursive` options 
-    // in some architectures for unknown reason, use the mkdir 
+    // Call mkdirSync function failed with `recursive` options
+    // in some architectures for unknown reason, use the mkdir
     // command instead.
 
     const args = [path]
