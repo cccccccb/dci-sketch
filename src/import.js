@@ -78,16 +78,58 @@ export function ShowLayerPalette() {
         UI.alert("无文档", "请先选择一个文档！")
         return
     }
-        
+
     var layers = doc.selectedLayers
-    if (!layers || layers.length != 1 || layers.layers[0].type != 'Artboard') {
+    if (!layers) {
         UI.alert("请选择画板", "仅支持选中画板！")
         return
     }
-        
-    var layer = layers.layers[0]
-    const key = layer.id + "PaletteSettings"
-    var paletteSetting = getPaletteSettings(doc, key)
+
+    for (var i = 0; i < layers.length; ++i) {
+        if (layers.layers[i].type != 'Artboard') {
+            UI.alert("请选择画板", "仅支持选中画板！")
+            return
+        }
+    }
+
+    var selectedLayers = layers.layers
+    var paletteSetting
+    for (var layer of selectedLayers) {
+        const key = layer.id + "PaletteSettings"
+        var paletteSettingOfLayer = getPaletteSettings(doc, key)
+        if (paletteSetting === undefined)
+            paletteSetting = paletteSettingOfLayer
+
+        if (paletteSetting.paletteRole != paletteSettingOfLayer.paletteRole
+            || paletteSetting.hue != paletteSettingOfLayer.hue
+            || paletteSetting.saturation != paletteSettingOfLayer.saturation
+            || paletteSetting.lightness != paletteSettingOfLayer.lightness
+            || paletteSetting.red != paletteSettingOfLayer.red
+            || paletteSetting.green != paletteSettingOfLayer.green
+            || paletteSetting.blue != paletteSettingOfLayer.blue
+            || paletteSetting.alpha != paletteSettingOfLayer.alpha) {
+                var alertDataDiff = NSAlert.alloc().init()
+                alertDataDiff.setMessageText("选中画板数据不一致")
+                alertDataDiff.setInformativeText("已选中多个不同画板，设置参数后将应用于所有画板！")
+                alertDataDiff.addButtonWithTitle("确定")
+                alertDataDiff.addButtonWithTitle("取消")
+
+                var ret = alertDataDiff.runModal()
+                if (ret !== 1000)
+                    return
+
+                paletteSetting.paletteRole = -1
+                paletteSetting.hue = 0
+                paletteSetting.saturation = 0
+                paletteSetting.lightness = 0
+                paletteSetting.red = 0
+                paletteSetting.green = 0
+                paletteSetting.blue = 0
+                paletteSetting.alpha = 0
+                break
+            }
+    }
+
     var paletteRole = paletteSetting.paletteRole
     var hue = paletteSetting.hue
     var saturation =  paletteSetting.saturation
@@ -110,7 +152,7 @@ export function ShowLayerPalette() {
         {
             title: "无",
             value: -1
-        },  
+        },
         {
             title: "前景色",
             value: 0
@@ -138,11 +180,10 @@ export function ShowLayerPalette() {
     paletteRoleLabel.setFont(NSFont.paletteFontOfSize(NSFont.systemFontSize()))
     view.addSubview(paletteRoleLabel)
 
-    var currentMenuVar = -1
     var selectMenuIndex = 0
     var menu = NSMenu.alloc().init()
     var menuItemCallBack = function(menuItem) {
-        currentMenuVar = menuItem.representedObject()
+        paletteSetting.paletteRole = menuItem.representedObject()
     }
 
     paletteList.forEach(function(palette, index) {
@@ -176,13 +217,12 @@ export function ShowLayerPalette() {
     var redField = addLabelField(20, 115, "红色", red, view)
     var greenField = addLabelField(20, 80, "绿色", green, view)
     var blueField = addLabelField(20, 45, "蓝色", blue, view)
-    var alphaField = addLabelField(20, 10, "透明度", alpha, view)
+    var alphaField = addLabelField(20, 10, "不透明度", alpha, view)
 
     var ret = alert.runModal()
     if (ret !== 1000)
         return
 
-    paletteSetting.paletteRole = currentMenuVar
     paletteSetting.hue = hueField.intValue()
     paletteSetting.saturation = saturationField.intValue()
     paletteSetting.lightness = lightnessField.intValue()
@@ -190,7 +230,11 @@ export function ShowLayerPalette() {
     paletteSetting.green = greenField.intValue()
     paletteSetting.blue = blueField.intValue()
     paletteSetting.alpha = alphaField.intValue()
-    setPaletteSetting(doc, key, paletteSetting)
+
+    for (var layer of selectedLayers) {
+        const key = layer.id + "PaletteSettings"
+        setPaletteSetting(doc, key, paletteSetting)
+    }
 }
 
 export function OnCreate() {
@@ -202,13 +246,55 @@ export function OnCreate() {
     newIconToCurrentPage(options.name, options.colorSensitive)
 }
 
+export function AddArtboardPadding() {
+    var currentDoc = Document.getSelectedDocument()
+    if (!currentDoc) {
+        UI.alert("无文档", "请选择一个文档！")
+        return
+    }
+
+    var layers = currentDoc.selectedLayers
+    if (!layers || layers.layers.length === 0) {
+        UI.alert("无画板", "请选择一个画板")
+        return
+    }
+
+    var alert = NSAlert.alloc().init()
+    alert.setMessageText("添加画板外间距")
+    alert.addButtonWithTitle("确定")
+    alert.addButtonWithTitle("取消")
+
+    var view = NSView.alloc().initWithFrame(NSMakeRect(0, 0, 250, 100))
+    alert.setAccessoryView(view)
+
+    var key = layers.layers[0].id + "Padding"
+    var padding = Settings.documentSettingForKey(currentDoc, key)
+    if (padding === undefined)
+        padding = 0
+    else
+        padding = Number(padding)
+
+    var field = addLabelField(0, 50, "外间距", padding, view)
+    var ret = alert.runModal()
+    if (ret !== 1000)
+        return
+
+    setPaletteSetting(currentDoc, key, field.intValue())
+}
+
 export function OnRename() {
     var currentDoc = Document.getSelectedDocument()
-    if (!currentDoc)
+    if (!currentDoc) {
         UI.alert("无文档", "请选择一个文档！")
+        return
+    }
+
     var layers = currentDoc.selectedLayers
-    if (!layers || layers.layers.length === 0)
+    if (!layers || layers.layers.length === 0) {
         UI.alert("无画板", "请选择一个画板")
+        return
+    }
+
     var newName = UI.getStringFromUser("请输入图标的新名称", "")
     if (newName == "") {
         return
@@ -402,18 +488,15 @@ function createArtboard(parent, name, rect, color) {
     artboard.exportFormats = [
         {
             fileFormat: "png",
-            size: "1x",
-            suffix: `.png`
+            size: "1x"
         },
         {
             fileFormat: "png",
-            size: "2x",
-            suffix: `.png`
+            size: "2x"
         },
         {
             fileFormat: "png",
-            size: "3x",
-            suffix: `.png`
+            size: "3x"
         }
     ]
 
@@ -538,7 +621,7 @@ function showDciFileContents(url) {
             layer.frame.height = imageSize
 
             if (!groupInfo.has(dir)) {
-                groupInfo.set(dir, {width: PreviewArtBoardMargin, height: PreviewArtBoardMargin, y: maxHeight + PreviewArtBoardMargin, 
+                groupInfo.set(dir, {width: PreviewArtBoardMargin, height: PreviewArtBoardMargin, y: maxHeight + PreviewArtBoardMargin,
                     isDark: dir.lastIndexOf(".dark") > 0, children: []})
             }
             var group = groupInfo.get(dir)

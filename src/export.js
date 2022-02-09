@@ -156,13 +156,20 @@ function doExportIcon(layers) {
                     const sizeNumber = Number(size.slice(0, -1))
                     if (Number.isNaN(sizeNumber))
                         continue
-                    targetScaleList.push({scale: sizeNumber, format: format.fileFormat, suffix: format.suffix})
+                    var suffix = '.' + format.fileFormat.toLowerCase()
+                    targetScaleList.push({scale: sizeNumber, format: format.fileFormat, suffix: suffix})
                 }
             }
             if (targetScaleList.length === 0)
                 continue;
 
+            var padding = Settings.documentSettingForKey(Document.getSelectedDocument(), file.object.id + "Padding")
             var size = Math.max(file.object.frame.width, file.object.frame.height)
+
+            if (padding !== undefined)
+                size -= (2 * Number(padding))
+            else
+                padding = 0
             if (Number.isNaN(size))
                 continue
 
@@ -178,7 +185,7 @@ function doExportIcon(layers) {
 
                     const data = Document.export(file.object, { formats: scale.format, output: false, scales: String(scale.scale) })
                     // TODO: pare palette data to generate file base name.
-                    const fileBaseName = generateFileBaseName(file.object, scale.suffix, filePath)
+                    const fileBaseName = generateFileBaseName(file.object, scale.suffix, filePath, padding)
                     const imageFile = PATH.join(filePath, fileBaseName)
                     if (doLink) {
                         const linkSourcePath = PATH.join(PATH.relative(filePath, linkDir), fileBaseName)
@@ -225,15 +232,18 @@ function getPaletteSettings(document, key) {
     return paletteSetting
 }
 
-function generateFileBaseName(layer, suffix, filePath) {
+function generateFileBaseName(layer, suffix, filePath, padding) {
     var index = 1
     for(var file of FS.readdirSync(filePath).sort()) {
         var existIndex = Number(file.split('.')[0])
         if ((existIndex != undefined) && existIndex >= index)
             index = existIndex + 1
     }
-    
+
     var name = index.toString() + '.'
+    if (padding !== 0)
+        name += padding.toString() + "p."
+
     var paletteSettings = getPaletteSettings(Document.getSelectedDocument(), layer.id + 'PaletteSettings')
     if (paletteSettings != undefined) {
         if (paletteSettings.paletteRole != -1) {
@@ -253,8 +263,9 @@ function generateFileBaseName(layer, suffix, filePath) {
         }
     }
 
-    if (name.endsWith('.'))
+    if (name.endsWith('.')) {
         name = name.slice(0, -1)
+    }
     name += suffix
     return name
 }

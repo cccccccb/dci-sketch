@@ -24,6 +24,13 @@
       "shortcut": "command option shift r"
     },
     {
+      "name": "画板间距",
+      "identifier": "dci.icon.addpadding",
+      "script": "import.js",
+      "handler": "AddArtboardPadding",
+      "shortcut": "command option shift p"
+    },
+    {
       "name": "打开",
       "identifier": "dci.import.open",
       "script": "import.js",
@@ -55,6 +62,7 @@
     "items": [
       "dci.import.create.icon",
       "dci.import.show.palette",
+      "dci.icon.addpadding",
       "dci.import.open",
       "dci.icon.rename",
       "dci.export.icon",
