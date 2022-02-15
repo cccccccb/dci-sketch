@@ -364,22 +364,22 @@ function getIconOptionsFromUser() {
     colorSensitiveLabel.setDrawsBackground(false)
     colorSensitiveLabel.setEditable(false)
     colorSensitiveLabel.setSelectable(false)
-    colorSensitiveLabel.setStringValue("图标颜色是否为可变化的？")
+    colorSensitiveLabel.setStringValue("请选择所绘制图标的类型？")
     colorSensitiveLabel.setFont(NSFont.paletteFontOfSize(NSFont.systemFontSize()))
     view.addSubview(colorSensitiveLabel)
 
     var colorSensitives = [
         {
-            title: "颜色可变化",
-            value: true
+            title: "深浅主题通用",
+            value: false
         },
         {
-            title: "颜色不可变化",
-            value: false
+            title: "区分深浅主题",
+            value: true
         }
     ]
 
-    var currentMenuVar = true
+    var currentMenuVar = false
     var menu = NSMenu.alloc().init()
     var menuItemCallBack = function(menuItem) {
         currentMenuVar = menuItem.representedObject()
