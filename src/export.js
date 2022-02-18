@@ -194,6 +194,21 @@ function doExportIcon(layers) {
                     } else {
                         linkDir = filePath
                         FS.writeFileSync(imageFile, data)
+                        // alpha8 only support for png format.
+                        if (scale.suffix.indexOf("png") == -1)
+                            continue
+                        var paletteSettings = getPaletteSettings(Document.getSelectedDocument(), file.object.id + 'PaletteSettings')
+                        if (paletteSettings === undefined)
+                            continue
+                        if (paletteSettings.paletteRole == -1)
+                            continue
+                        // Has palette role.
+                        var targetPath = PATH.join(filePath, fileBaseName + ".alpha8")
+                        const alpha8CommandArgs = ["--toAlpha8", targetPath, imageFile]
+                        var alpha8CommandOutput = spawnSync("dci-image-converter", alpha8CommandArgs)
+                        if (alpha8CommandOutput && alpha8CommandOutput.status === 0) {
+                            FS.unlinkSync(imageFile)
+                        }
                     }
                 }
 

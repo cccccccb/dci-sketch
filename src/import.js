@@ -34,7 +34,6 @@ var Settings = require('sketch/settings')
 
 function getPaletteSettings(document, key) {
     var paletteSetting = Settings.documentSettingForKey(document, key)
-
     if (paletteSetting === undefined) {
         paletteSetting = {
             paletteRole: -1,
@@ -560,6 +559,31 @@ function createGroups(parent, path, size) {
     return parent
 }
 
+function readDciImageData(filePath) {
+    var stat = FS.lstatSync(filePath);
+    if (!stat.isFile())
+        return undefined
+    if (PATH.extname(filePath).indexOf("alpha8") != -1) {
+        // alpha8 format image
+        const targetPath = filePath.slice(0, filePath.lastIndexOf(".alpha8"))
+        const alpha8CommandArgs = ["--fromAlpha8", targetPath, filePath]
+        var alpha8CommandOutput = spawnSync("dci-image-converter", alpha8CommandArgs)
+        if (alpha8CommandOutput && alpha8CommandOutput.status === 0) {
+            FS.unlinkSync(filePath)
+            filePath = targetPath
+        }
+    }
+
+    var buffer
+    try {
+        buffer = FS.readFileSync(filePath)
+    } catch {
+        return undefined
+    }
+
+    return buffer;
+}
+
 function showDciFileContents(url) {
     const page = getAndCheckCurrentPage()
     const path = url.path()
@@ -596,12 +620,7 @@ function showDciFileContents(url) {
             if (!file.startsWith(PATH.join(iconName, "")))
                 continue
             const filePath = PATH.join(tmpPath, file)
-            var buffer
-            try {
-                buffer = FS.readFileSync(filePath)
-            } catch {
-                continue
-            }
+            var buffer = readDciImageData(filePath)
 
             if (buffer === undefined)
                 continue
