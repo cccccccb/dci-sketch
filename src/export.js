@@ -141,7 +141,13 @@ function doExportIcon(layers) {
             UI.alert(`导出 ${iconName} 失败`, `无法创建 "${tmpDir}" 目录`)
             continue
         }
+
+        // save the image file count of directory
+        var imageFileCountForPath = {}
         for (const file of iconFileList) {
+            // subdirectorys for the icon image, if it's a generic icon then
+            // auto create the "xxxx.dark" directory and symlink to the "xxxx.light"
+            // directory. Multiple directories share the same image file.
             var subdirNames = generateIconFileNamesByProperies(file)
             if (subdirNames === undefined) {
                 UI.alert("警告!", `"${file.object.name}" 是一个无效图标！`);
@@ -153,11 +159,11 @@ function doExportIcon(layers) {
             for (const format of file.object.exportFormats) {
                 const size = format.size
                 if (size.endsWith("x") && !size.endsWith("px")) {
-                    const sizeNumber = Number(size.slice(0, -1))
-                    if (Number.isNaN(sizeNumber))
+                    const scaleNumber = Number(size.slice(0, -1))
+                    if (Number.isNaN(scaleNumber))
                         continue
                     var suffix = '.' + format.fileFormat.toLowerCase()
-                    targetScaleList.push({scale: sizeNumber, format: format.fileFormat, suffix: suffix})
+                    targetScaleList.push({scale: scaleNumber, format: format.fileFormat, suffix: suffix})
                 }
             }
             if (targetScaleList.length === 0)
@@ -173,46 +179,90 @@ function doExportIcon(layers) {
             if (Number.isNaN(size))
                 continue
 
-            var linkDir
-            var doLink = false
-            for (const subdirName of subdirNames) {
-                for (const scale of targetScaleList) {
+            var isAlphaOnlyImage = false
+            var paletteSettings = getPaletteSettings(Document.getSelectedDocument(), file.object.id + 'PaletteSettings')
+            if (paletteSettings && paletteSettings.paletteRole !== -1)
+                isAlphaOnlyImage = true
+
+            for (const scale of targetScaleList) {
+                var linkDir, linkFilename
+                var doLink = false
+
+                for (const subdirName of subdirNames) {
                     const filePath = PATH.join(tmpPath, size.toString(), subdirName, scale.scale.toString())
                     if (!createDirectory(filePath, { recursive: true })) {
                         UI.message(`无法创建 "${filePath}" 目录, 将跳过！`)
                         continue
                     }
 
-                    const data = Document.export(file.object, { formats: scale.format, output: false, scales: String(scale.scale) })
-                    // TODO: pare palette data to generate file base name.
-                    const fileBaseName = generateFileBaseName(file.object, scale.suffix, filePath, padding)
-                    const imageFile = PATH.join(filePath, fileBaseName)
                     if (doLink) {
-                        const linkSourcePath = PATH.join(PATH.relative(filePath, linkDir), fileBaseName)
-                        console.log("link from:", linkSourcePath, "to:", imageFile)
-                        FS.symlinkSync(linkSourcePath, imageFile)
+                        const linkSourcePath = PATH.join(PATH.relative(filePath, linkDir), linkFilename)
+                        console.log("link from:", linkSourcePath, "to:", linkFilename)
+                        FS.symlinkSync(linkSourcePath, PATH.join(filePath, linkFilename))
                     } else {
                         linkDir = filePath
+                        var index = imageFileCountForPath[filePath]
+                        if (index === undefined)
+                            index = 0
+                        index += 1
+                        imageFileCountForPath[filePath] = index
+
+                        const fileBaseName = generateFileBaseName(index, paletteSettings, scale.suffix, filePath, padding)
+                        const imageFile = PATH.join(filePath, fileBaseName)
+                        const data = Document.export(file.object, { formats: scale.format, output: false, scales: String(scale.scale) })
                         FS.writeFileSync(imageFile, data)
+
+                        if (!isAlphaOnlyImage) {
+                            linkFilename = fileBaseName
+                            continue;
+                        }
+
+                        var pngFileNameBase
+                        var pngImageFile
+                        var cleanPngImage = false
                         // alpha8 only support for png format.
-                        if (scale.suffix.indexOf("png") == -1)
-                            continue
-                        var paletteSettings = getPaletteSettings(Document.getSelectedDocument(), file.object.id + 'PaletteSettings')
-                        if (paletteSettings === undefined)
-                            continue
-                        if (paletteSettings.paletteRole == -1)
-                            continue
-                        // Has palette role.
-                        var targetPath = PATH.join(filePath, fileBaseName + ".alpha8")
-                        const alpha8CommandArgs = ["--toAlpha8", targetPath, imageFile]
+                        if (scale.format.toLowerCase() !== "png") {
+                            // Save a png image for dci-image-converter
+                            const data = Document.export(file.object, { formats: "png", output: false, scales: String(scale.scale) })
+                            pngFileNameBase = generateFileBaseName(index, paletteSettings, ".png", filePath, padding)
+                            pngImageFile = PATH.join(filePath, pngFileNameBase)
+                            FS.writeFileSync(pngImageFile, data)
+                            cleanPngImage = true
+                        } else {
+                            pngFileNameBase = fileBaseName
+                            pngImageFile = imageFile
+                        }
+
+                        var targetPath = pngImageFile + ".alpha8"
+                        const alpha8CommandArgs = ["--toAlpha8", targetPath, pngImageFile]
+                        // Try compress the image file
                         var alpha8CommandOutput = spawnSync("dci-image-converter", alpha8CommandArgs)
                         if (alpha8CommandOutput && alpha8CommandOutput.status === 0) {
-                            FS.unlinkSync(imageFile)
+                            if (cleanPngImage)
+                                FS.unlinkSync(pngImageFile)
+
+                            try {
+                                var stat = FS.lstatSync(targetPath)
+                                if (stat.size < data.length) {
+                                    // Use the lesser file replace of the "imageFile"
+                                    FS.unlinkSync(imageFile)
+                                    linkFilename = pngFileNameBase + ".alpha8"
+                                    console.log("Use the:", targetPath, "replace of:", imageFile)
+                                } else {
+                                    // Clean the alpha8 image file
+                                    FS.unlinkSync(targetPath)
+                                }
+                            } catch (err) {
+                                console.log("Not found the:", targetPath, "file")
+                            }
+                        } else {
+                            console.log("dci-image-converter:", alpha8CommandOutput, alpha8CommandOutput.stdout.toString(), alpha8CommandOutput.stderr.toString())
                         }
                     }
-                }
 
-                doLink = true
+                    // Multiple directories share the same image file.
+                    doLink = true
+                }
             }
         }
         const args = ["--create", saveDir, tmpPath]
@@ -247,19 +297,11 @@ function getPaletteSettings(document, key) {
     return paletteSetting
 }
 
-function generateFileBaseName(layer, suffix, filePath, padding) {
-    var index = 1
-    for(var file of FS.readdirSync(filePath).sort()) {
-        var existIndex = Number(file.split('.')[0])
-        if ((existIndex != undefined) && existIndex >= index)
-            index = existIndex + 1
-    }
-
+function generateFileBaseName(index, paletteSettings, suffix, filePath, padding) {
     var name = index.toString() + '.'
     if (padding !== 0)
         name += padding.toString() + "p."
 
-    var paletteSettings = getPaletteSettings(Document.getSelectedDocument(), layer.id + 'PaletteSettings')
     if (paletteSettings != undefined) {
         if (paletteSettings.paletteRole != -1) {
             name += paletteSettings.paletteRole

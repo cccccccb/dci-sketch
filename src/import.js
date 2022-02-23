@@ -486,15 +486,7 @@ function createArtboard(parent, name, rect, color) {
 
     artboard.exportFormats = [
         {
-            fileFormat: "png",
-            size: "1x"
-        },
-        {
-            fileFormat: "png",
-            size: "2x"
-        },
-        {
-            fileFormat: "png",
+            fileFormat: "webp",
             size: "3x"
         }
     ]
