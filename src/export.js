@@ -143,7 +143,7 @@ function doExportIcon(layers) {
         }
 
         // save the image file count of directory
-        var imageFileCountForPath = {}
+        let imageFileCountForPath = {}
         for (const file of iconFileList) {
             // subdirectorys for the icon image, if it's a generic icon then
             // auto create the "xxxx.dark" directory and symlink to the "xxxx.light"
@@ -154,7 +154,7 @@ function doExportIcon(layers) {
                 continue
             }
 
-            var targetScaleList = []
+            let targetScaleList = []
             // find image pixel ratio list of export
             for (const format of file.object.exportFormats) {
                 const size = format.size
@@ -179,14 +179,14 @@ function doExportIcon(layers) {
             if (Number.isNaN(size))
                 continue
 
-            var isAlphaOnlyImage = false
+            let isAlphaOnlyImage = false
             var paletteSettings = getPaletteSettings(Document.getSelectedDocument(), file.object.id + 'PaletteSettings')
             if (paletteSettings && paletteSettings.paletteRole !== -1)
                 isAlphaOnlyImage = true
 
             for (const scale of targetScaleList) {
-                var linkDir, linkFilename
-                var doLink = false
+                let linkDir, linkFilename
+                let doLink = false
 
                 for (const subdirName of subdirNames) {
                     const filePath = PATH.join(tmpPath, size.toString(), subdirName, scale.scale.toString())
@@ -211,9 +211,10 @@ function doExportIcon(layers) {
                         const imageFile = PATH.join(filePath, fileBaseName)
                         const data = Document.export(file.object, { formats: scale.format, output: false, scales: String(scale.scale) })
                         FS.writeFileSync(imageFile, data)
+                        linkFilename = fileBaseName
 
                         if (!isAlphaOnlyImage) {
-                            linkFilename = fileBaseName
+                            doLink = true
                             continue;
                         }
 
