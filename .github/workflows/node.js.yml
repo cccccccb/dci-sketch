@@ -32,5 +32,5 @@ jobs:
     - name: Package
       uses: actions/upload-artifact@v3
       with:
-        name: dci-sketch.sketchplugin
+        name: dci-sketch.sketchplugin-${{ matrix.node-version }}
         path: dci-sketch.sketchplugin/
