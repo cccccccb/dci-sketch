@@ -8,8 +8,6 @@ const NameSeparator = '/'
 function checkIconName(name) {
     return (
         name.indexOf(NameSeparator) < 0)
-        && (name.indexOf(" ") < 0
-        && (name.indexOf(".") < 0)
     )
 }
 
