@@ -28,3 +28,9 @@ jobs:
         cache: 'npm'
     - run: npm ci
     - run: npm run build
+    - run: ls
+    - name: Package
+      uses: actions/upload-artifact@v3
+      with:
+        name: dci-sketch.sketchplugin
+        path: dci-sketch.sketchplugin/
