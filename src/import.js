@@ -297,7 +297,7 @@ export function OnRename() {
         return
     }
     if (!checkIconName(newName)) {
-        UI.alert("无效名称", "图标名称中包含 './ ' 等无效字符！")
+        UI.alert("无效名称", "图标名称中包含 '/' 无效字符！")
         return
     }
     layers = layers.layers
@@ -353,7 +353,7 @@ function getIconOptionsFromUser() {
     view.addSubview(iconNameLabel)
 
     var nameField = NSTextField.alloc().initWithFrame(NSMakeRect(0, 95, 180, 23))
-    nameField.setPlaceholderString("请勿包含'./'或空格等特殊符号！")
+    nameField.setPlaceholderString("请勿在图标名称中包含'/'符号！")
     view.addSubview(nameField)
 
     var colorSensitiveLabel = NSTextField.alloc().initWithFrame(NSMakeRect(13, 45, 160, 25))
