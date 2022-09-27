@@ -29,8 +29,11 @@ jobs:
     - run: npm ci
     - run: npm run build
     - run: ls
+    - run: |
+        mkdir dci-sketch.sketchplugin-${{ matrix.node-version }}
+        mv dci-sketch.sketchplugin/ dci-sketch.sketchplugin-${{ matrix.node-version }}/dci-sketch.sketchplugin-${{ matrix.node-version }}
     - name: Package
       uses: actions/upload-artifact@v3
       with:
         name: dci-sketch.sketchplugin-${{ matrix.node-version }}
-        path: dci-sketch.sketchplugin/
+        path: dci-sketch.sketchplugin-${{ matrix.node-version }}/
