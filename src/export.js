@@ -115,16 +115,37 @@ function doExportIcon(layers) {
         return
 
     UI.message(`Saveing to ${saveDir}`)
+    var skipAll = false
+    var overrideAll = false
     for (const iconName in allIcon) {
         const iconFileList = allIcon[iconName]
         const iconPath = PATH.join(saveDir, iconName + ".dci")
         // create directory for the icon
         try {
             FS.accessSync(iconPath, FS._R_OK)
-            if (!userAccpetOverrideFile(iconPath)) {
-                console.log(`Skip ${iconName} on export`)
-                continue
-            }
+
+            if (skipAll) {
+                continue;
+              }
+        
+              if (!overrideAll) {
+                // [responseCode, sel, responseCode === NSAlertFirstButtonReturn]
+                var selections = userAccpetOverrideFile(iconPath)
+                if (!selections[2] || selections[1] == 0) {
+                  console.log("Skip ".concat(iconName, " on export"))
+                  continue
+                } 
+        
+                if (selections[1] == 2) {
+                  console.log("override All on export")
+                  overrideAll = true
+                } else if (selections[1] == 3) {
+                  console.log("Skip All on export")
+                  skipAll = true
+                  continue
+                }
+              }
+            
             // clean
             spawnSync("rm", [iconPath])
         } catch {
@@ -329,12 +350,9 @@ function generateFileBaseName(index, paletteSettings, suffix, filePath, padding)
 }
 
 function userAccpetOverrideFile(filePath) {
-    var options = ['覆盖', '跳过']
+    var options = ['覆盖', '跳过', '覆盖All', '跳过All']
     var selection = UI.getSelectionFromUser(`"${filePath}" 已存在！`, options)
-    if (!selection[2])
-        return
-
-    return selection[1] === 0
+    return selection;
 }
 
 function generateIconFileNamesByProperies(properies) {
