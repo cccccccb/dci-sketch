@@ -123,19 +123,17 @@ function doExportIcon(layers) {
         // create directory for the icon
         try {
             FS.accessSync(iconPath, FS._R_OK)
-
-            if (skipAll) {
-                continue;
-              }
+            if (skipAll) 
+                continue
         
-              if (!overrideAll) {
+            if (!overrideAll) {
                 // [responseCode, sel, responseCode === NSAlertFirstButtonReturn]
                 var selections = userAccpetOverrideFile(iconPath)
                 if (!selections[2] || selections[1] == 0) {
                   console.log("Skip ".concat(iconName, " on export"))
                   continue
                 } 
-        
+
                 if (selections[1] == 2) {
                   console.log("override All on export")
                   overrideAll = true
@@ -144,7 +142,7 @@ function doExportIcon(layers) {
                   skipAll = true
                   continue
                 }
-              }
+            }
             
             // clean
             spawnSync("rm", [iconPath])
